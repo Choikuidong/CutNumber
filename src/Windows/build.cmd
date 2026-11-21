@@ -1,0 +1,2 @@
+@echo off
+dotnet publish CutNumber.csproj -c Release -r win-x64 --self-contained true -o publish

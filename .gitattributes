@@ -1,0 +1,12 @@
+* text=auto
+*.swift text eol=lf
+*.cs text eol=lf
+*.csproj text eol=lf
+*.manifest text eol=lf
+*.command text eol=lf
+*.cmd text eol=crlf
+*.md text eol=lf
+*.vbs binary
+*.png binary
+*.ico binary
+*.icns binary
