@@ -2,9 +2,19 @@
 
 CutNumber is a desktop app for arranging images, renaming them as a numbered sequence, and exporting the sequence as a silent H.264 MP4.
 
-## Download for macOS
+## Download CutNumber 1.0.4
 
-Download **CutNumber-1.0.4.dmg** from [the v1.0.4 release](https://github.com/Choikuidong/CutNumber/releases/tag/v1.0.4). Open the disk image, drag CutNumber into **Applications**, then launch it from there. This build requires an Apple Silicon Mac running macOS 13 or later. The app is ad hoc signed and has not been notarized by Apple.
+| Platform | Download | Getting started |
+| --- | --- | --- |
+| macOS — Apple Silicon, macOS 13 or later | [Download macOS DMG][mac-download] | Open the DMG and drag **CutNumber.app** to **Applications**. Launch it from Applications. |
+| Windows — x64, Windows 11 or Windows 10 22H2 | [Download Windows ZIP][windows-download] | Extract the entire ZIP, then open **CutNumber.exe**. To add Start menu and desktop shortcuts, run **Install.cmd**. |
+
+The macOS app is ad hoc signed and has not been notarized by Apple. The Windows ZIP includes the required .NET runtime.
+
+![CutNumber on macOS showing numbered output names and the selected frame preview](docs/images/cutnumber-macos.png)
+
+[mac-download]: https://github.com/Choikuidong/CutNumber/releases/download/v1.0.4/CutNumber-1.0.4.dmg
+[windows-download]: https://github.com/Choikuidong/CutNumber/releases/download/v1.0.4/CutNumber-Windows-1.0.4.zip
 
 ## Use CutNumber
 

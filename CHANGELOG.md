@@ -1,5 +1,8 @@
 # 1.0.4
 
+- The macOS disk image now shows the app as `CutNumber.app`.
+- Published the Windows x64 ZIP alongside the macOS DMG.
+
 - Centered the Apple Craft logo and company name on the same line in the About window.
 - Added a clickable link to the Apple Craft website.
 - Placed the localized month and year beneath the version.
