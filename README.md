@@ -2,6 +2,12 @@
 
 CutNumber is a desktop app for arranging images, renaming them as a numbered sequence, and exporting the sequence as a silent H.264 MP4.
 
+## Support with KakaoPay
+
+Scan this QR code with the KakaoTalk code scanner to support CutNumber.
+
+<img src="assets/kakaopay-qr.png" alt="KakaoPay transfer QR code" width="320">
+
 ## Download CutNumber 1.0.4
 
 | Platform | Download | Getting started |
