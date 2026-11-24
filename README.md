@@ -54,7 +54,7 @@ To build the self-contained Windows x64 application with the .NET 10 SDK:
 dotnet publish src/Windows/CutNumber.csproj -c Release -r win-x64 --self-contained true -o build/Windows
 ```
 
-Windows 11 x64 and Windows 10 22H2 x64 are the intended targets. HEIC and WebP support can depend on installed codecs. Windows N may require the Media Feature Pack for video export. The Windows build was cross-compiled and its file operations were tested. The Windows interface, installation, and video export have not been exercised on Windows.
+Windows 11 x64 and Windows 10 22H2 x64 are the intended targets. HEIC and WebP support can depend on installed codecs. Windows N may require the Media Feature Pack for video export. The Windows x64 build was launched on Windows 11 ARM under x64 emulation. File operations were tested separately. The installer and Windows video export still need Windows validation.
 
 ## Checks
 

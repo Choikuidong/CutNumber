@@ -8,6 +8,8 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
+using System.Windows.Shapes;
+using Path = System.IO.Path;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
@@ -50,12 +52,14 @@ public sealed class MainWindow : Window {
     readonly ComboBox mode = Combo(T("copy"), T("rename"));
     readonly ComboBox fps = Combo("1 FPS", "12 FPS", "24 FPS", "25 FPS", "30 FPS", "60 FPS");
     readonly CheckBox recursive = new() { Content = T("subfolders"), Foreground = Brushes.White, Margin = new Thickness(0, 10, 0, 8) };
-    readonly TextBlock count = Text(T("frameCount", 0), 12), duration = Text(T("duration") + " · " + T("seconds", "0.00"), 12);
+    readonly TextBlock count = Text(T("frameCount", 0), 12), duration = Text(T("seconds", "0.00"), 12);
     readonly TextBlock status = Text(T("ready"), 11);
     readonly Image preview = new() { Stretch = Stretch.Uniform };
     readonly TextBlock previewTitle = Text(T("selectPhoto"), 13);
     readonly TextBlock previewDetail = Text("", 11);
-    readonly TextBlock emptyHint = Text(T("emptyNote"), 20);
+    readonly Border emptyHint = new() { Margin = new Thickness(4, 8, 4, 8) };
+    readonly List<Button> frameActions = new();
+    readonly List<Button> selectionActions = new();
     readonly ProgressBar progress = new() { Minimum = 0, Maximum = 100, Height = 4, Visibility = Visibility.Collapsed };
     readonly Grid body = new();
     readonly StackPanel toolbar = new() { Orientation = Orientation.Horizontal };
@@ -68,13 +72,10 @@ public sealed class MainWindow : Window {
         Background = BackgroundBrush; Foreground = Brushes.White;
         FontFamily = new FontFamily("Segoe UI, Malgun Gothic"); FontSize = 12;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        var buttonStyle = new Style(typeof(Button));
-        buttonStyle.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(12, 8, 12, 8)));
-        buttonStyle.Setters.Add(new Setter(Control.MarginProperty, new Thickness(0, 3, 7, 3)));
-        buttonStyle.Setters.Add(new Setter(Control.BackgroundProperty, new SolidColorBrush(Color.FromRgb(38, 46, 55))));
-        buttonStyle.Setters.Add(new Setter(Control.ForegroundProperty, Brushes.White));
-        buttonStyle.Setters.Add(new Setter(Control.BorderThicknessProperty, new Thickness(0)));
-        Resources.Add(typeof(Button), buttonStyle);
+        UseLayoutRounding = true;
+        Resources.MergedDictionaries.Add(new ResourceDictionary {
+            Source = new Uri("pack://application:,,,/CutNumber;component/Theme.xaml")
+        });
         var root = new DockPanel(); Content = root;
         var menu = new Menu { Background = PanelBrush, Foreground = Brushes.White };
         var applicationMenu = new MenuItem { Header = T("app"), Foreground = Brushes.White };
@@ -88,7 +89,7 @@ public sealed class MainWindow : Window {
         var languageSelector = new ComboBox {
             ItemsSource = Languages, DisplayMemberPath = "Name", SelectedValuePath = "Code",
             SelectedValue = Code, MinWidth = 125, Margin = new Thickness(0, 3, 10, 3),
-            Foreground = Brushes.Black, ToolTip = T("language")
+            VerticalAlignment = VerticalAlignment.Center, ToolTip = T("language")
         };
         languageSelector.SelectionChanged += (_, _) => {
             if (busy || languageSelector.SelectedValue is not string code || code == Code) return;
@@ -100,21 +101,68 @@ public sealed class MainWindow : Window {
                 Close();
             } catch (Exception ex) { languageSelector.SelectedValue = Code; Error(ex); }
         };
+        var languageLabel = Text(T("language"), 12);
+        languageLabel.VerticalAlignment = VerticalAlignment.Center;
+        languageLabel.Margin = new Thickness(0, 0, 8, 0);
+        toolbar.Children.Add(languageLabel);
         toolbar.Children.Add(languageSelector);
-        toolbar.Children.Add(Button(T("paste"), Paste));
-        toolbar.Children.Add(Button(T("folder"), AddFolder));
-        toolbar.Children.Add(Button(T("add"), AddImages, true));
-        var branding = new StackPanel();
-        branding.Children.Add(Text(T("app") + "  " + Program.Version, 25, true));
-        branding.Children.Add(Text(T("tagline"), 12)); heading.Children.Add(branding);
-        var bottom = new DockPanel { Background = PanelBrush, Margin = new Thickness(0, 1, 0, 0) };
-        DockPanel.SetDock(bottom, Dock.Bottom); root.Children.Add(bottom);
-        status.Margin = new Thickness(20, 10, 20, 10); bottom.Children.Add(status);
+        toolbar.Children.Add(Button("▤  " + T("paste"), Paste));
+        toolbar.Children.Add(Button("▱  " + T("folder"), AddFolder));
+        toolbar.Children.Add(Button("+  " + T("add"), AddImages, true));
+        var branding = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        var mark = Text("#", 24, true);
+        mark.Foreground = Accent;
+        mark.Margin = new Thickness(0);
+        branding.Children.Add(new Border {
+            Child = mark, Width = 44, Height = 44, Background = Brush("#20322D"),
+            CornerRadius = new CornerRadius(12), Margin = new Thickness(0, 12, 12, 0),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Padding = new Thickness(13, 4, 0, 0)
+        });
+        var identity = new StackPanel();
+        var name = new StackPanel { Orientation = Orientation.Horizontal };
+        name.Children.Add(Text(T("app"), 22, true));
+        var version = Badge(Program.Version);
+        version.Margin = new Thickness(9, 0, 0, 0);
+        name.Children.Add(version);
+        identity.Children.Add(name);
+        var tagline = Text(T("tagline"), 11);
+        tagline.Margin = new Thickness(0);
+        identity.Children.Add(tagline);
+        branding.Children.Add(identity);
+        heading.Children.Add(branding);
+
+        var bottom = new DockPanel { Background = PanelBrush };
+        DockPanel.SetDock(bottom, Dock.Bottom);
+        root.Children.Add(bottom);
+        var footerVersion = Text("CUTNUMBER  /  " + Program.Version, 10);
+        footerVersion.FontFamily = new FontFamily("Consolas");
+        footerVersion.Margin = new Thickness(12, 10, 22, 10);
+        DockPanel.SetDock(footerVersion, Dock.Right);
+        bottom.Children.Add(footerVersion);
+        status.Margin = new Thickness(22, 10, 8, 10);
+        status.TextWrapping = TextWrapping.NoWrap;
+        status.TextTrimming = TextTrimming.CharacterEllipsis;
+        bottom.Children.Add(status);
         DockPanel.SetDock(progress, Dock.Bottom); root.Children.Add(progress);
-        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(276) });
+        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(290) });
         body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(298) }); root.Children.Add(body);
-        BuildSidebar(); BuildTable(); BuildPreview();
+        body.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(290) }); root.Children.Add(body);
+        BuildSidebar();
+        BuildTable();
+        BuildPreview();
+        var sidebarEdge = new Border {
+            Width = 1, HorizontalAlignment = HorizontalAlignment.Right,
+            Background = Brush("#303640"), IsHitTestVisible = false
+        };
+        body.Children.Add(sidebarEdge);
+        var previewEdge = new Border {
+            Width = 1, HorizontalAlignment = HorizontalAlignment.Left,
+            Background = Brush("#303640"), IsHitTestVisible = false
+        };
+        Grid.SetColumn(previewEdge, 2);
+        body.Children.Add(previewEdge);
+        RefreshNames();
         if (previous != null) {
             prefix.Text = previous.prefix.Text; start.Text = previous.start.Text;
             digits.SelectedIndex = previous.digits.SelectedIndex;
@@ -144,40 +192,158 @@ public sealed class MainWindow : Window {
     }
 
     void BuildSidebar() {
-        var side = new StackPanel { Margin = new Thickness(20) };
-        var scroll = new ScrollViewer { Content = side, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Background = PanelBrush };
+        var side = new StackPanel { Margin = new Thickness(20, 14, 20, 18) };
+        var scroll = new ScrollViewer {
+            Content = side, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Background = PanelBrush
+        };
         body.Children.Add(scroll);
-        side.Children.Add(Text("01   " + T("import"), 15, true));
-        side.Children.Add(Text(T("folderTime"), 11)); side.Children.Add(timeOrder); side.Children.Add(recursive);
-        side.Children.Add(Button(T("applyTime"), SortByTime));
-        side.Children.Add(new Separator { Margin = new Thickness(0, 16, 0, 16) });
-        side.Children.Add(Text("02   " + T("filenames"), 15, true));
-        side.Children.Add(Text(T("prefix"), 11)); side.Children.Add(prefix);
-        side.Children.Add(Text(T("start"), 11)); side.Children.Add(start);
-        side.Children.Add(Text(T("digits"), 11)); side.Children.Add(digits);
-        side.Children.Add(mode); side.Children.Add(Button(T("saveSequence"), SaveSequence));
-        side.Children.Add(new Separator { Margin = new Thickness(0, 16, 0, 16) });
-        side.Children.Add(Text("03   " + T("video"), 15, true)); side.Children.Add(fps); side.Children.Add(duration);
-        side.Children.Add(Button(T("saveVideo"), SaveVideo, true));
+        side.Children.Add(SectionHeading("▱", "01", T("import")));
+        side.Children.Add(Text(T("folderTime"), 11));
+        side.Children.Add(timeOrder);
+        side.Children.Add(recursive);
+        side.Children.Add(FrameAction(Button(T("applyTime"), SortByTime)));
+        side.Children.Add(Divider());
+        side.Children.Add(SectionHeading("123", "02", T("filenames")));
+        side.Children.Add(Text(T("prefix"), 11));
+        prefix.ToolTip = T("prefixExample");
+        side.Children.Add(prefix);
+
+        var numbering = new Grid { Margin = new Thickness(0, 5, 0, 0) };
+        numbering.ColumnDefinitions.Add(new ColumnDefinition());
+        numbering.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
+        numbering.ColumnDefinitions.Add(new ColumnDefinition());
+        var startField = new StackPanel();
+        startField.Children.Add(Text(T("start"), 11));
+        startField.Children.Add(start);
+        numbering.Children.Add(startField);
+        var digitsField = new StackPanel();
+        digitsField.Children.Add(Text(T("digits"), 11));
+        digits.Margin = new Thickness(0, 0, 0, 4);
+        digitsField.Children.Add(digits);
+        Grid.SetColumn(digitsField, 2);
+        numbering.Children.Add(digitsField);
+        side.Children.Add(numbering);
+        side.Children.Add(mode);
+        var modeNote = Text(T("copyNote"), 11);
+        var sequence = FrameAction(Button(T("saveSequence"), SaveSequence));
+        mode.SelectionChanged += (_, _) => {
+            bool rename = mode.SelectedIndex == 1;
+            modeNote.Text = T(rename ? "renameNote" : "copyNote");
+            sequence.Content = T(rename ? "rename" : "saveSequence");
+        };
+        side.Children.Add(modeNote);
+        side.Children.Add(sequence);
+        side.Children.Add(Divider());
+        side.Children.Add(SectionHeading("▣", "03", T("video")));
+        fps.Width = 104;
+        side.Children.Add(SettingsRow(T("frameRate"), fps));
+        var durationRow = SettingsRow(T("duration"), duration);
+        duration.FontFamily = new FontFamily("Consolas");
+        duration.Foreground = Brushes.White;
+        side.Children.Add(durationRow);
+        side.Children.Add(FrameAction(Button("▷  " + T("saveVideo"), SaveVideo, true)));
         side.Children.Add(Text(T("videoNote"), 10));
-        digits.SelectedIndex = 2; fps.SelectedIndex = 2;
-        foreach (var box in new[] { prefix, start }) {
-            box.Margin = new Thickness(0, 4, 0, 6); box.Padding = new Thickness(7);
+        digits.SelectedIndex = 2;
+        fps.SelectedIndex = 2;
+        foreach (var box in new[] { prefix, start })
             box.TextChanged += (_, _) => RefreshNames();
-        }
-        digits.SelectionChanged += (_, _) => RefreshNames(); fps.SelectionChanged += (_, _) => RefreshNames();
+        digits.SelectionChanged += (_, _) => RefreshNames();
+        fps.SelectionChanged += (_, _) => RefreshNames();
+    }
+
+    static DockPanel SettingsRow(string title, FrameworkElement value) {
+        var row = new DockPanel();
+        DockPanel.SetDock(value, Dock.Right);
+        row.Children.Add(value);
+        var label = Text(title, 11);
+        label.VerticalAlignment = VerticalAlignment.Center;
+        row.Children.Add(label);
+        return row;
+    }
+
+    static DockPanel SectionHeading(string icon, string number, string title) {
+        var row = new DockPanel();
+        var index = Text(number, 10);
+        index.FontFamily = new FontFamily("Consolas");
+        DockPanel.SetDock(index, Dock.Right);
+        row.Children.Add(index);
+        var glyph = Text(icon, 13, true);
+        glyph.Foreground = Accent;
+        glyph.Margin = new Thickness(0, 5, 8, 6);
+        row.Children.Add(glyph);
+        row.Children.Add(Text(title, 14, true));
+        return row;
+    }
+
+    static Border Divider() => new() {
+        Height = 1, Background = Brush("#303640"), Margin = new Thickness(0, 14, 0, 14)
+    };
+
+    static Border Badge(string label) {
+        var value = Text(label, 11, true);
+        value.FontFamily = new FontFamily("Consolas");
+        value.Margin = new Thickness(0);
+        value.Foreground = Accent;
+        return Badge(value);
+    }
+
+    static Border Badge(TextBlock value) => new() {
+        Background = Brush("#20322D"), CornerRadius = new CornerRadius(20),
+        Padding = new Thickness(10, 5, 10, 5), VerticalAlignment = VerticalAlignment.Center, Child = value
+    };
+
+    Button FrameAction(Button button) {
+        frameActions.Add(button);
+        return button;
+    }
+
+    Button SelectionAction(Button button) {
+        selectionActions.Add(button);
+        return button;
     }
 
     void BuildTable() {
         var area = new DockPanel { Margin = new Thickness(20) }; Grid.SetColumn(area, 1); body.Children.Add(area);
         var heading = new DockPanel { Margin = new Thickness(0, 0, 0, 15) };
-        DockPanel.SetDock(count, Dock.Right); count.Foreground = Accent; heading.Children.Add(count);
-        heading.Children.Add(Text(T("frames"), 20, true)); DockPanel.SetDock(heading, Dock.Top); area.Children.Add(heading);
-        var controls = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
-        controls.Children.Add(Button("↑", () => Move(true))); controls.Children.Add(Button("↓", () => Move(false)));
-        controls.Children.Add(Button(T("remove"), Remove)); controls.Children.Add(Button(T("nameSort"), SortByName));
-        controls.Children.Add(Button(T("reverse"), Reverse)); controls.Children.Add(Button(T("clear"), Clear));
-        DockPanel.SetDock(controls, Dock.Bottom); area.Children.Add(controls);
+        count.Foreground = Accent;
+        count.FontFamily = new FontFamily("Consolas");
+        count.Margin = new Thickness(0);
+        var countBadge = Badge(count);
+        DockPanel.SetDock(countBadge, Dock.Right);
+        heading.Children.Add(countBadge);
+        var titles = new StackPanel();
+        titles.Children.Add(Text(T("frames"), 19, true));
+        titles.Children.Add(Text(T("listNote"), 12));
+        heading.Children.Add(titles); DockPanel.SetDock(heading, Dock.Top); area.Children.Add(heading);
+        var controls = new DockPanel { Margin = new Thickness(0, 10, 0, 0) };
+        var clear = FrameAction(Button(T("clear"), Clear));
+        clear.Margin = new Thickness(0);
+        DockPanel.SetDock(clear, Dock.Right);
+        controls.Children.Add(clear);
+        var actions = new WrapPanel();
+        var up = SelectionAction(Button("↑", () => Move(true)));
+        up.ToolTip = T("up");
+        var down = SelectionAction(Button("↓", () => Move(false)));
+        down.ToolTip = T("down");
+        actions.Children.Add(up);
+        actions.Children.Add(down);
+        actions.Children.Add(SelectionAction(Button(T("remove"), Remove)));
+        var sortOptions = new ContextMenu { Background = PanelBrush, Foreground = Brushes.White };
+        foreach (var (label, action) in new (string, Action)[] {
+            (T("nameSort"), SortByName), (T("applyTime"), SortByTime), (T("reverse"), Reverse)
+        }) {
+            var item = new MenuItem { Header = label };
+            item.Click += (_, _) => action();
+            sortOptions.Items.Add(item);
+        }
+        var sort = FrameAction(Button(T("sort") + "  ⌄", () => sortOptions.IsOpen = true));
+        sort.ContextMenu = sortOptions;
+        sortOptions.PlacementTarget = sort;
+        sortOptions.Placement = PlacementMode.Bottom;
+        actions.Children.Add(sort);
+        controls.Children.Add(actions);
+        DockPanel.SetDock(controls, Dock.Bottom);
+        area.Children.Add(controls);
         var note = Text(T("orderHint"), 11);
         note.TextWrapping = TextWrapping.Wrap; note.Margin = new Thickness(0, 10, 0, 0); DockPanel.SetDock(note, Dock.Bottom); area.Children.Add(note);
         var layer = new Grid(); area.Children.Add(layer);
@@ -185,31 +351,70 @@ public sealed class MainWindow : Window {
         table.CanUserAddRows = false; table.CanUserDeleteRows = false; table.CanUserSortColumns = false;
         table.SelectionMode = DataGridSelectionMode.Extended; table.SelectionUnit = DataGridSelectionUnit.FullRow;
         table.Background = BackgroundBrush; table.Foreground = Brushes.White; table.RowBackground = PanelBrush;
-        table.AlternatingRowBackground = Brush("#1D232C"); table.BorderThickness = new Thickness(0);
+        table.AlternatingRowBackground = Brush("#1C212A"); table.BorderThickness = new Thickness(0);
         table.GridLinesVisibility = DataGridGridLinesVisibility.None; table.HeadersVisibility = DataGridHeadersVisibility.Column;
         table.RowHeight = 36;
-        table.Columns.Add(Column(T("number"), "Number", 58));
+        table.Columns.Add(Column(T("number"), "Number", 58, foreground: Muted, mono: true));
         table.Columns.Add(Column(T("original"), "Name", 1, true));
-        table.Columns.Add(Column(T("output"), "Output", 1, true));
+        table.Columns.Add(Column(T("output"), "Output", 1, true, Accent, true));
         var headerStyle = new Style(typeof(DataGridColumnHeader));
         headerStyle.Setters.Add(new Setter(Control.BackgroundProperty, PanelBrush));
         headerStyle.Setters.Add(new Setter(Control.ForegroundProperty, Muted));
         headerStyle.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(8, 10, 8, 10)));
         table.ColumnHeaderStyle = headerStyle;
-        table.SelectionChanged += async (_, _) => await UpdatePreview();
-        layer.Children.Add(table); emptyHint.HorizontalAlignment = HorizontalAlignment.Center;
-        emptyHint.VerticalAlignment = VerticalAlignment.Center; emptyHint.TextAlignment = TextAlignment.Center;
-        emptyHint.IsHitTestVisible = false; layer.Children.Add(emptyHint);
+        table.SelectionChanged += async (_, _) => {
+            UpdateActions();
+            await UpdatePreview();
+        };
+        layer.Children.Add(table);
+        var dropArea = new Grid();
+        dropArea.Children.Add(new Rectangle {
+            RadiusX = 16, RadiusY = 16, Stroke = Brush("#375145"),
+            StrokeThickness = 1, StrokeDashArray = new DoubleCollection { 6, 6 },
+            IsHitTestVisible = false
+        });
+        var emptyContent = new StackPanel {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16)
+        };
+        var dropIcon = Text("▧", 35, true);
+        dropIcon.Foreground = Accent;
+        dropIcon.Margin = new Thickness(0);
+        dropIcon.TextAlignment = TextAlignment.Center;
+        emptyContent.Children.Add(new Border {
+            Width = 84, Padding = new Thickness(0, 9, 0, 11),
+            Background = Brush("#20322D"), CornerRadius = new CornerRadius(16),
+            HorizontalAlignment = HorizontalAlignment.Center, Child = dropIcon
+        });
+        var emptyTitle = Text(T("empty"), 23, true);
+        emptyTitle.Margin = new Thickness(0, 18, 0, 6);
+        emptyTitle.TextAlignment = TextAlignment.Center;
+        emptyContent.Children.Add(emptyTitle);
+        var hint = Text(T("emptyNote"), 13);
+        hint.TextAlignment = TextAlignment.Center;
+        emptyContent.Children.Add(hint);
+        var add = Button("+  " + T("add"), AddImages);
+        add.Margin = new Thickness(0, 12, 0, 0);
+        add.HorizontalAlignment = HorizontalAlignment.Center;
+        emptyContent.Children.Add(add);
+        dropArea.Children.Add(emptyContent);
+        emptyHint.Child = dropArea;
+        layer.Children.Add(emptyHint);
+    }
+
+    void UpdateActions() {
+        foreach (var action in frameActions) action.IsEnabled = rows.Count > 0;
+        foreach (var action in selectionActions) action.IsEnabled = table.SelectedItems.Count > 0;
     }
 
     void BuildPreview() {
         var area = new DockPanel { Background = PanelBrush, Margin = new Thickness(0) }; Grid.SetColumn(area, 2); body.Children.Add(area);
-        var heading = Text(T("preview"), 16, true); heading.Margin = new Thickness(20); DockPanel.SetDock(heading, Dock.Top); area.Children.Add(heading);
+        var heading = Text("▧  " + T("preview"), 15, true); heading.Margin = new Thickness(20); DockPanel.SetDock(heading, Dock.Top); area.Children.Add(heading);
         var details = new StackPanel { Margin = new Thickness(20) };
         previewTitle.TextWrapping = TextWrapping.Wrap; previewDetail.TextWrapping = TextWrapping.Wrap;
         details.Children.Add(previewTitle); details.Children.Add(previewDetail);
         DockPanel.SetDock(details, Dock.Bottom); area.Children.Add(details);
-        area.Children.Add(new Border { Background = Brushes.Black, Margin = new Thickness(16), Padding = new Thickness(10), CornerRadius = new CornerRadius(10), Child = preview });
+        area.Children.Add(new Border { Background = Brush("#11151C"), Margin = new Thickness(16), Padding = new Thickness(10), CornerRadius = new CornerRadius(10), Child = preview });
     }
 
     async void AddImages() {
@@ -245,7 +450,9 @@ public sealed class MainWindow : Window {
         for (int i = 0; i < rows.Count; i++) { rows[i].Number = (i + 1).ToString("D4"); rows[i].Output = names?[i] ?? T("checkSettings"); }
         table.Items.Refresh(); count.Text = T("frameCount", rows.Count);
         emptyHint.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        duration.Text = T("duration") + " · " + T("seconds", ((double)rows.Count / Fps()).ToString("F2"));
+        table.Visibility = rows.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        duration.Text = T("seconds", ((double)rows.Count / Fps()).ToString("F2"));
+        UpdateActions();
     }
     int StartNumber() => int.TryParse(start.Text, out int value) && value >= 0 ? value : throw new IOException(T("invalidStart"));
     int Digits() => new[] { 1, 3, 4, 5, 6 }[Math.Max(0, digits.SelectedIndex)];
@@ -455,11 +662,21 @@ public sealed class MainWindow : Window {
     }
     static SolidColorBrush Brush(string color) => new((Color)ColorConverter.ConvertFromString(color));
     static TextBlock Text(string text, double size, bool bold = false) => new() { Text = text, FontSize = size, FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal, Foreground = bold ? Brushes.White : Muted, Margin = new Thickness(0, 5, 0, 6), TextWrapping = TextWrapping.Wrap };
-    static ComboBox Combo(params string[] values) => new() { ItemsSource = values, SelectedIndex = 0, Margin = new Thickness(0, 5, 0, 7), Padding = new Thickness(6), Foreground = Brushes.Black, MinHeight = 30 };
+    static ComboBox Combo(params string[] values) => new() { ItemsSource = values, SelectedIndex = 0, Margin = new Thickness(0, 5, 0, 7), MinHeight = 30 };
     static Button Button(string title, Action action, bool prominent = false) {
         var button = new Button { Content = title };
         if (prominent) { button.Background = Accent; button.Foreground = BackgroundBrush; }
         button.Click += (_, _) => action(); return button;
     }
-    static DataGridTextColumn Column(string title, string property, double width, bool star = false) => new() { Header = title, Binding = new Binding(property), Width = new DataGridLength(width, star ? DataGridLengthUnitType.Star : DataGridLengthUnitType.Pixel) };
+    static DataGridTextColumn Column(string title, string property, double width, bool star = false,
+                                         Brush? foreground = null, bool mono = false) {
+        var element = new Style(typeof(TextBlock));
+        element.Setters.Add(new Setter(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis));
+        if (foreground != null) element.Setters.Add(new Setter(TextBlock.ForegroundProperty, foreground));
+        if (mono) element.Setters.Add(new Setter(TextBlock.FontFamilyProperty, new FontFamily("Consolas")));
+        return new DataGridTextColumn {
+            Header = title, Binding = new Binding(property), ElementStyle = element,
+            Width = new DataGridLength(width, star ? DataGridLengthUnitType.Star : DataGridLengthUnitType.Pixel)
+        };
+    }
 }

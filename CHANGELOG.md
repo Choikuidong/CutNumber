@@ -1,5 +1,6 @@
 # 1.0.4
 
+- Updated the Windows interface to match the macOS layout and colors. The settings, frame list, and image preview now share the same visual hierarchy, with a matching toolbar and drag-and-drop area.
 - The macOS disk image now shows the app as `CutNumber.app`.
 - Published the Windows x64 ZIP alongside the macOS DMG.
 
