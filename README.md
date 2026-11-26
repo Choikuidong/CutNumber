@@ -1,5 +1,7 @@
 # CutNumber
 
+[日本語](docs/readme/ja.md) · **English** · [한국어](docs/readme/ko.md) · [简体中文](docs/readme/zh-Hans.md) · [Español](docs/readme/es.md) · [Français](docs/readme/fr.md) · [Deutsch](docs/readme/de.md) · [Português](docs/readme/pt.md) · [Русский](docs/readme/ru.md) · [العربية](docs/readme/ar.md)
+
 CutNumber is a desktop app for arranging images, renaming them as a numbered sequence, and exporting the sequence as a silent H.264 MP4.
 
 ## See CutNumber in action
